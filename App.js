@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import {
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -9,42 +10,83 @@ import {
 } from 'react-native';
 
 export default function App() {
-
   const [nombre, setNombre] = useState('');
   const [producto, setProducto] = useState('');
   const [cantidad, setCantidad] = useState('');
+  const [precioUnitario, setPrecioUnitario] = useState('');
   const [mensaje, setMensaje] = useState('');
+  const [pedido, setPedido] = useState('');
+  const [totalPedidos, setTotalPedidos] = useState(0);
+  const [valorAcumulado, setValorAcumulado] = useState(0);
 
-  const mostrarInformacion = () => {
+  const confirmarPedido = () => {
+    const cantidadIngresada = Number(cantidad);
+    const precioNormalizado = precioUnitario.trim().replace(',', '.');
+    const precioIngresado = Number(precioNormalizado);
 
-    if (nombre.trim() === '' || producto.trim() === '' || cantidad.trim() === '') {
+    if (nombre.trim() === '' || producto.trim() === '' || cantidad.trim() === '' || precioUnitario.trim() === '') {
       setMensaje('Por favor, completa todos los campos');
+      setPedido('');
+    } else if (/\d/.test(nombre) || /\d/.test(producto)) {
+      setMensaje('Ingresa solo texto, sin números, en los campos Nombre y Producto');
+      setPedido('');
+    } else if (!/^\d+$/.test(cantidad) || !Number.isSafeInteger(cantidadIngresada) || cantidadIngresada <= 0) {
+      setMensaje('Ingresa una cantidad válida mayor que cero');
+      setPedido('');
+    } else if (!/^\d+(?:\.\d+)?$/.test(precioNormalizado) || !Number.isFinite(precioIngresado)) {
+      setMensaje('Ingresa un precio unitario válido');
+      setPedido('');
     } else {
-      setMensaje(`Hola ${nombre}, registraste:
-Producto: ${producto}
-Cantidad: ${cantidad}
-        `);
-    }
+      const total = cantidadIngresada * precioIngresado;
 
+      if (!Number.isFinite(total)) {
+        setMensaje('El valor total del pedido es demasiado grande');
+        setPedido('');
+        return;
+      }
+
+      const totalFormateado = total.toLocaleString('es-CO', {
+        maximumFractionDigits: 2
+      });
+
+      setTotalPedidos((totalActual) => totalActual + 1);
+      setValorAcumulado((valorActual) => valorActual + total);
+      setMensaje('Pedido registrado correctamente');
+      setPedido(
+        `Nombre: ${nombre.trim()}\nProducto: ${producto.trim()}\nCantidad: ${cantidadIngresada}\nValor total: $${totalFormateado}`
+      );
+    }
   };
 
   const limpiarFormulario = () => {
     setNombre('');
     setProducto('');
     setCantidad('');
+    setPrecioUnitario('');
     setMensaje('Limpiado correctamente');
+    setPedido('');
   };
 
   return (
-
-    <View style={styles.container}>
-
+    <ScrollView
+      contentContainerStyle={styles.container}
+      keyboardShouldPersistTaps="handled"
+    >
       <Text style={styles.titulo}>
         Bienvenido a AgroCBA
       </Text>
 
       <Text style={styles.subtitulo}>
-        Registra tus productos en el formulario ⬇️
+        Registra tus productos en el formulario
+      </Text>
+
+      <Text style={styles.contador}>
+        Pedidos registrados en esta sesión: {totalPedidos}
+      </Text>
+
+      <Text style={styles.contador}>
+        Valor acumulado de los pedidos: $
+        {valorAcumulado.toLocaleString('es-CO', { maximumFractionDigits: 2 })}
       </Text>
 
       <Text style={styles.etiqueta}>Nombre</Text>
@@ -69,18 +111,28 @@ Cantidad: ${cantidad}
 
       <TextInput
         style={styles.input}
-        placeholder="Escribe la cantidad del producto"
+        placeholder="Escribe la cantidad de unidades del producto"
         keyboardType="numeric"
         value={cantidad}
         onChangeText={setCantidad}
       />
 
+      <Text style={styles.etiqueta}>Precio unitario</Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="Escribe el precio por unidad"
+        keyboardType="decimal-pad"
+        value={precioUnitario}
+        onChangeText={setPrecioUnitario}
+      />
+
       <Pressable
         style={styles.boton}
-        onPress={mostrarInformacion}
+        onPress={confirmarPedido}
       >
         <Text style={styles.textoBoton}>
-          Mostrar Producto
+          Registrar pedido
         </Text>
       </Pressable>
 
@@ -92,22 +144,30 @@ Cantidad: ${cantidad}
           Limpiar formulario
         </Text>
       </Pressable>
-            <View style={styles.resultado}>
-        <Text style={styles.mensaje}>
+
+      <View style={styles.resultado}>
+        <Text
+          style={[
+            styles.mensaje,
+            mensaje.startsWith('Ingresa') || mensaje.startsWith('Por favor') || mensaje.startsWith('El valor')
+              ? styles.mensajeError
+              : null
+          ]}
+        >
           {mensaje}
+        </Text>
+        <Text style={styles.pedido}>
+          {pedido}
         </Text>
       </View>
 
-
-    </View>
-
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 25,
     backgroundColor: '#F2F4F8',
@@ -117,21 +177,28 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#0f3f8b',
+    color: '#176b0c',
   },
 
   subtitulo: {
     fontSize: 15,
     textAlign: 'center',
-    color: '#64748B',
-    marginBottom: 30,
+    marginBottom: 12,
+  },
+
+  contador: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#176b0c',
+    marginBottom: 24,
   },
 
   etiqueta: {
-    fontSize: 16,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 7,
-    color: '#334155',
+    color: '#127a13',
   },
 
   input: {
@@ -145,7 +212,7 @@ const styles = StyleSheet.create({
   },
 
   boton: {
-    backgroundColor: '#2563EB',
+    backgroundColor: '#127a13',
     padding: 16,
     borderRadius: 10,
     alignItems: 'center',
@@ -175,9 +242,17 @@ const styles = StyleSheet.create({
   },
 
   mensaje: {
-    fontSize: 16,
-    textAlign: 'center',
-    color: '#1E293B',
+    fontSize: 22,
+    color: '#127a13',
+    fontWeight: 'bold',
   },
 
+  mensajeError: {
+    color: '#DC2626',
+  },
+
+  pedido: {
+    fontSize: 20,
+    padding: 5,
+  },
 });
